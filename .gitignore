@@ -1,0 +1,27 @@
+# Ignore emacs backups & auto save files
+*~
+\#*\#
+.\#*
+
+# scratch & tmp directories
+scratch/
+tmp/
+preserve/
+.preserve/
+worktree/
+
+scratch/
+
+# Emacs tags
+TAGS
+
+# OSX noise
+.DS_Store
+
+# Various FASLs
+*.fasl
+*.xfasl
+*.64xfasl
+*.dx32fsl
+*.dx64fsl
+
