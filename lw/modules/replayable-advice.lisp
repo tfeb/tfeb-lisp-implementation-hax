@@ -11,7 +11,7 @@
   (:add-use-defaults)
   (:export
    #:map-replayable-advice
-   #:remove-replayable-advice
+   #:forget-replayable-advice
    #:*replayable-advice*))
 
 (in-package :org.tfeb.lw.replayable-advice)
@@ -78,8 +78,8 @@ Return NIL"
     (destructuring-bind ((what .  name) . replayer) r
       (funcall f what name replayer))))
 
-(defun remove-replayable-advice (what name)
-  "Remove replayable advice for WHAT and NAME"
+(defun forget-replayable-advice (what name)
+  "Forget replayable advice for WHAT and NAME"
   (let ((wn (cons what name)))
     (if (assoc wn *replayable-advices* :test #'equal)
         (progn
