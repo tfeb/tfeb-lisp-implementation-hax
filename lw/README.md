@@ -88,7 +88,7 @@ Exports:
 **Implementation note.** `lw-commands` currently uses an ancient, undocumented hack to define new toplevel commands to LW, based on grovelling around in the implementation in 2001-2002.  `system:define-top-loop-command` is now how you are meant to do this, but it does not (yet) have a way of adding documentation strings, so `:?` is less useful.  That's why I'm still using this ancient hack.
 
 ## [`modules`](modules/)
-Small useful things.
+Small useful things for LW.
 
 ### Advice
 **`recording-advice`** teaches `defadvice` how to record what things you have advised.  `*recording-advice*` controls whether advice is recorded and `map-recorded-advice` calls a function on the dspec and name of each bit of recorded advice.  The function is allowed to remove or add more advice.
@@ -96,3 +96,15 @@ Small useful things.
 **`replayable-advice`** allows you to to 'replay', or reapply, advice.  `*replayable-advice*` controls whether advice is noted for replaying, and `map-replayable-advice` calls a function for each bit of replayable advice with three arguments: the dspec, the name, and a function of no arguments which, if called, will replay the advice.  Finally `forget-replayable-advice`, if called with a dspec and name will forget the replayability of that bit of advice, if it has any.
 
 Both of these work by themselves advising the internal function to which `defadvice` expands and are thus very fragile.
+
+### Stack control
+**`allowing-stack-extensions`** is a macro which allows you to control how and whether LW will extend the stack, by invoking the appropriate restart.   For instance
+
+```lisp
+(allowing-stack-extensions (:limit 100000)
+  ...)
+```
+
+will allow the stack to be extended while it is smaller than `100000`.  The default value of the limit is `*stack-limit*` which in turn defaults to the current stack length at load time.  There are options to say 'always extend', 'never extend' and 'use `*stack-limit*` dynamically to decide'.
+
+You will need [metatronic macros](https://tfeb.github.io/tfeb-lisp-hax/#metatronic-macros) to use this.
