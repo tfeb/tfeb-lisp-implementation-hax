@@ -41,8 +41,9 @@ be).  If USE-STACK-LIMIT is given as true, then the dynamic value of
   (if use-stack-limit
       `(handler-bind ((stack-overflow
                        (lambda (c)
-                         (when (or (eq *stack-limit* t)
-                                   (< (current-stack-length) *stack-limit*))
+                         (when (and *stack-limit*
+                                    (or (eq *stack-limit* t)
+                                        (< (current-stack-length) *stack-limit*)))
                            (let ((r (find-restart 'continue c)))
                              (when r (invoke-restart r)))))))
          ,@forms)
@@ -50,8 +51,9 @@ be).  If USE-STACK-LIMIT is given as true, then the dynamic value of
        (check-type <limit> (or boolean real))
        (handler-bind ((stack-overflow
                        (lambda (c)
-                         (when (or (eq <limit> t)
-                                   (< (current-stack-length) <limit>))
+                         (when (and <limit>
+                                    (or (eq <limit> t)
+                                        (< (current-stack-length) <limit>)))
                            (let ((r (find-restart 'continue c)))
                              (when r (invoke-restart r)))))))
          ,@forms))))
