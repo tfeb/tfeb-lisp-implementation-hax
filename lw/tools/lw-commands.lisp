@@ -356,43 +356,46 @@
   ;; Load directory aliases if found.  INTO is the existing aliases
   ;; and may be mutated by this function.  Anything which would
   ;; introduce a loop or a dangling translation is rejected (is this
-  ;; right?).
-  (let* ((alias-file (make-pathname :name ".directory-aliases"
-                                    :defaults directory))
-         (new-aliases
-          (if (probe-file alias-file)
-              (with-open-file (in alias-file)
-                (with-standard-io-syntax
-                  (let ((*read-eval* nil))
-                    (loop for alias = (read in nil in)
-                          until (eq alias in)
-                          collect alias))))
-            '())))
-    (unless (and (listp new-aliases)
-                 (every (lambda (e)
-                          (and (listp e)
-                               (= (length e) 2)
-                               (symbolp (first e))
-                               (typep (second e) '(or symbol string pathname))))
+  ;; right?).  Return two values: the new aliases and whether we
+  ;; loaded anything.
+  (let ((alias-file (make-pathname :name ".directory-aliases"
+                                    :defaults directory)))
+    (unless (probe-file alias-file)
+      (return-from load-directory-aliases (values into nil)))
+    (let ((new-aliases
+           (if (probe-file alias-file)
+               (with-open-file (in alias-file)
+                 (with-standard-io-syntax
+                   (let ((*read-eval* nil))
+                     (loop for alias = (read in nil in)
+                           until (eq alias in)
+                           collect alias))))
+             '())))
+      (unless (and (listp new-aliases)
+                   (every (lambda (e)
+                            (and (listp e)
+                                 (= (length e) 2)
+                                 (symbolp (first e))
+                                 (typep (second e) '(or symbol string pathname))))
                           new-aliases))
-      (warn "bad aliases in ~A" alias-file)
-      (return-from load-directory-aliases into))
-    (dolist (na new-aliases into)
-      (destructuring-bind (alias translation) na
-        (if (translate-directories (list alias) (acons alias translation into))
-            ;; This would translate, so install it
-            (let ((found (assoc alias into))
-                  (effective-translation (typecase translation
-                                           ((or string pathname)
-                                            ;; allow relative to load dir
-                                            (namestring (merge-pathnames translation
-                                                                         directory)))
-                                           (symbol translation))))
-              (if found
-                  (setf (cdr found) effective-translation)
-            (setf into (acons alias effective-translation into))))
-          (warn "alias ~S -> ~S fails to translate: ignoring it"
-                alias translation))))))
+        (warn "bad aliases in ~A" alias-file)
+        (return-from load-directory-aliases (values into nil)))
+      (dolist (na new-aliases (values into t))
+        (destructuring-bind (alias translation) na
+          (if (translate-directories (list alias) (acons alias translation into))
+              ;; This would translate, so install it
+              (let ((found (assoc alias into))
+                    (effective-translation (typecase translation
+                                             ((or string pathname)
+                                              ;; allow relative to load dir
+                                              (namestring (merge-pathnames translation
+                                                                           directory)))
+                                             (symbol translation))))
+                (if found
+                    (setf (cdr found) effective-translation)
+                  (setf into (acons alias effective-translation into))))
+            (warn "alias ~S -> ~S fails to translate: ignoring it"
+                  alias translation)))))))
 
 (defun translate-directories (directories/aliases
                               &optional (aliases *directory-aliases*))
@@ -408,8 +411,6 @@
                  ((or string pathname)
                   found)
                  (null
-                  (warn "dangling directory alias ~S~@[ (via ~{~S~^ ~})~]"
-                        a (reverse seen))
                   nil)
                  (symbol
                   (cond
@@ -426,7 +427,7 @@
              ;; Translate a list of directories and aliases,
              ;; successively merging into INTO
              (if (null ds/as)
-                 into
+                 (values into nil)
                (destructuring-bind (d/a . more) ds/as
                  (let ((translation (typecase d/a
                                       (symbol
@@ -442,7 +443,7 @@
                        (td-loop more (if into
                                          (merge-pathnames translation into)
                                        translation))
-                     nil))))))
+                     (values into ds/as)))))))
     (td-loop directories/aliases nil)))
 
 ;;; Bootstrap
@@ -482,19 +483,45 @@
                                                      *directory-aliases*))
                (setf did-cd nil))
               (t
-               (let ((translation (translate-directories args)))
-                 (cond
-                  (translation
-                   (when (or (> l 1)
-                             (not (eq translation (first args))))
-                     (format t "~&~{~S~^ ~} -> ~A~%" args translation))
-                   (change-directory translation))
-                  (t
-                   (setf did-cd nil))))))
-             (when did-cd
-               (setf *directory-aliases* (load-directory-aliases *directory-aliases*)
-                     *last-directory* d))
-             did-cd)))
+               (labels ((translate-and-load (dirs/aliases)
+                          (multiple-value-bind (translation more)
+                              (translate-directories dirs/aliases)
+                            (cond
+                             (translation
+                              (when (or (> l 1)
+                                        (not (eq translation (first dirs/aliases))))
+                                (format t "~&~{~S~^ ~} -> ~A~%"
+                                        (ldiff dirs/aliases more) translation))
+                              (cond
+                               (more
+                                (multiple-value-bind (aliases loaded)
+                                    (load-directory-aliases *directory-aliases* translation)
+                                  (cond
+                                   (loaded
+                                    (setf *directory-aliases* aliases)
+                                    (translate-and-load more))
+                                   (t
+                                    (warn "dangling directory alias at ~S ~
+                                           (via ~{~S~^ ~}, from ~{~S~^ ~})"
+                                    (first more) dirs/aliases args)
+                                    nil))))
+                               (t
+                                (setf *directory-aliases*
+                                      (load-directory-aliases *directory-aliases* translation))
+                                translation)))
+                             (more
+                              (warn "dangling directory alias at ~S ~
+                                     (via ~{~S~^ ~}, from ~{~S~^ ~})"
+                                    (first more) dirs/aliases args)
+                              nil)))))
+                 (let ((translation (translate-and-load args)))
+                   (cond
+                    (translation
+                     (change-directory translation)
+                     (setf *last-directory* d))
+                    (t
+                     (setf did-cd nil))))
+                 did-cd))))))
     (case cmd
       ((:cd)
        (chdir args)
