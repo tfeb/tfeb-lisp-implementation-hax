@@ -78,6 +78,32 @@ With no arguments, `:prompt` will print what the current state is.
 
 There is no stack of prompts, and this whole mechanism is not really sorted out, but it's enough for me.
 
+**Running these commands from files.**  Quite often I want to say, for instance
+
+```
+:cl "my-file"
+:pkg> :my-package
+:prompt :minimal
+```
+
+Every time I start working on something.  The `:lrc` command lets you stash these things in a file and run them.
+
+```
+:lrc "setup"
+```
+
+will look for a file called `setup.lrc`, and read commands from it.  The commands are wrapped up as lists in the obvious was, so a file to do the above would contain:
+
+```
+(:cl "my-file")
+(:pkg> :my-package)
+(:prompt :minimal)
+```
+
+While the file is being read, `*read-eval*` is bound to `nil` but there are no other adjustments made: in particular it is not (and can't be) surrounded by `with-standard-io-syntax`.  You can specify zero or more files to read.  (Yes, `(:lrc "other-file")` works.)
+
+The contents of these files is *only* sequences of the commands specified here: they're not general programs and never will be (why would they be? CL is already that), but just ways of packaging up shorthands.
+
 **Module, package, &c.**  `lw-commands` lives in `:org.tfeb.lw.lw-commands`, provides `:org.tfeb.lw.lw-commands` and pushes `:org.tfeb.lw.lw-commands` onto `*features*`.
 
 Exports:

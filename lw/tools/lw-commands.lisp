@@ -359,7 +359,7 @@
   ;; right?).  Return two values: the new aliases and whether we
   ;; loaded anything.
   (let ((alias-file (make-pathname :name ".directory-aliases"
-                                    :defaults directory)))
+                                   :defaults directory)))
     (unless (probe-file alias-file)
       (return-from load-directory-aliases (values into nil)))
     (let ((new-aliases
@@ -649,3 +649,36 @@
 (declare-extra-lw-commands
   (:prompt prompt-command
    "Control the prompt"))
+
+(defun lrc-command (cmd &rest lrc-files)
+  ;; BEWARE: *there is no WITH-STANDARD-IO-SYNTAX here*: lrc commands
+  ;; get to do anything they want to.
+  (case cmd
+    ((:lrc)
+     (let ((*read-eval* nil))
+       (dolist (lrc-file lrc-files)
+         (let* ((lrc-name (merge-pathnames
+                           lrc-file
+                           (load-time-value (make-pathname :type "lrc"))))
+                (it (probe-file lrc-name)))
+           (if it
+               (with-open-file (lrc it)
+                 (loop for form = (read lrc nil lrc)
+                       until (eq form lrc)
+                       do
+                         (if (and (consp form)
+                                  (keywordp (first form)))
+                             (destructuring-bind (command &rest args) form
+                               (let ((found (assoc command *extra-lw-commands*)))
+                                 (if found
+                                     (apply (second found) command args)
+                                   (warn "no command for ~S" command))))
+                           (warn "malformed command ~A" form))))
+             (warn "no lrc file ~A (from ~A)" lrc-name lrc-file))))))
+    (otherwise
+     (warn "don't understand lrc command ~S" cmd)))
+  (values))
+
+(declare-extra-lw-commands
+  (:lrc lrc-command
+   "Run LW commands from an LRC file"))
