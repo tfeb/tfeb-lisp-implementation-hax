@@ -29,7 +29,7 @@ This module needs both ASDF and [`require-module`](https://tfeb.github.io/tfeb-l
 
 **Inspecting.**  `:gi` will run the GUI inspector on either its arguments, or with no arguments either `*` or `/` if more than one value was returned by the last thing in the REPL.
 
-**Background.**  `:&` will run a form in a new process.
+**Background and foreground.**  `:bg` will run a form in a new process, `:fg` will just evaluate something.  Both of these implicitly compile a function to do this: this means you get more errors, sooner.  `:fg` exists because it can be useful with `:lrc`, but *caveat emptor*.
 
 **Modules.**  `:require` just calls `require-module`.  This is the only place there is a dependency on `require-module`.
 
@@ -102,7 +102,7 @@ will look for a file called `setup.lrc`, and read commands from it.  The command
 
 While the file is being read, `*read-eval*` is bound to `nil` but there are no other adjustments made: in particular it is not (and can't be) surrounded by `with-standard-io-syntax`.  You can specify zero or more files to read.  (Yes, `(:lrc "other-file")` works.)
 
-The contents of these files is *only* sequences of the commands specified here: they're not general programs and never will be (why would they be? CL is already that), but just ways of packaging up shorthands.
+The contents of these files is *only* sequences of the commands specified here: they're not general programs and never will be (why would they be? CL is already that), but just ways of packaging up shorthands.  On the other hand, there is `:fg`.
 
 **Module, package, &c.**  `lw-commands` lives in `:org.tfeb.lw.lw-commands`, provides `:org.tfeb.lw.lw-commands` and pushes `:org.tfeb.lw.lw-commands` onto `*features*`.
 

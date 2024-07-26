@@ -288,12 +288,12 @@
   (:gi gi "Inspect graphically"))
 
 
-;;;; Background
+;;;; Background (and foreground now)
 ;;;
 
-(defun bg (cmd &rest forms)
+(defun bg/fg (cmd &rest forms)
   (case cmd
-    ((:&)
+    ((:bg)
      (if forms
          (mp:process-run-function
           (format nil "~{~S~^ ~}" forms)
@@ -302,10 +302,17 @@
                           ,@forms)))
        (progn
          (warn "need something to run")
-         (values))))))
+         (values))))
+    ((:fg)
+     (if forms
+         (funcall (compile nil `(lambda ()
+                                  ,@forms)))
+       (progn
+         (warn "need some forms to eval"))))))
 
 (declare-extra-lw-commands
-  (:& bg "Run in the background"))
+  (:bg bg/fg "Run in the background")
+  (:fg bg/fg "Eval forms"))
 
 ;;;; Requiring modules
 ;;;
