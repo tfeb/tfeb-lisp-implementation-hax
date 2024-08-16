@@ -4,7 +4,7 @@ Tools for LW.
 ### LW command line tools
 **`lw-comands`** provides some extra commands for the LW toplevel.  These are the commands I use: they may or may not be useful for other people.  The documentation below is rough: a lot of the commands have slightly unclear semantics which I can't always remember.
 
-This module needs both ASDF and [`require-module`](https://tfeb.github.io/tfeb-lisp-tools/#requiring-modules-with-searching-require-module).  It makes some attempt to make sure ASDF is loaded but it just assumes `require-module` is there.  I might remove this dependency as I don't actually use the `:require` command very often any more.
+This module needs ASDF and makes some attempt to make sure ASDF is loaded.
 
 **Package commands.**  These let you change package and maintain a stack of packages so you can push or pop packages.
 
@@ -30,8 +30,6 @@ This module needs both ASDF and [`require-module`](https://tfeb.github.io/tfeb-l
 **Inspecting.**  `:gi` will run the GUI inspector on either its arguments, or with no arguments either `*` or `/` if more than one value was returned by the last thing in the REPL.
 
 **Background and foreground.**  `:bg` will run a form in a new process, `:fg` will just evaluate something.  Both of these implicitly compile a function to do this: this means you get more errors, sooner.  `:fg` exists because it can be useful with `:lrc`, but *caveat emptor*.
-
-**Modules.**  `:require` just calls `require-module`.  This is the only place there is a dependency on `require-module`.
 
 **Directory commands.**  These let you change directory and also support directory aliases, autoloaded from files.
 

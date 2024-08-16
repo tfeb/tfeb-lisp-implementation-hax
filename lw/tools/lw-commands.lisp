@@ -11,20 +11,17 @@
 ;;; with the image.
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (require "asdf")
-  #-org.tfeb.tools.require-module
-  (error "need require-module"))
+  (require "asdf"))
 
 (defpackage :org.tfeb.lw.lw-commands
   (:add-use-defaults t)
-  (:use :org.tfeb.tools.require-module)
   (:export
    #:declare-extra-lw-commands
    #:*prompts*))
 
 (in-package :org.tfeb.lw.lw-commands)
 
-(provide-module :org.tfeb.lw.lw-commands)
+(provide :org.tfeb.lw.lw-commands)
 (pushnew :org.tfeb.lw.lw-commands *features*)
 
 ;;;; Declaring extra LW commands
@@ -313,28 +310,6 @@
 (declare-extra-lw-commands
   (:bg bg/fg "Run in the background")
   (:fg bg/fg "Eval forms"))
-
-;;;; Requiring modules
-;;;
-;;; All the actual code for this is now in its own module
-;;;
-
-(defun require-module-command (cmd &rest args)
-  (declare (ignore cmd))
-  (destructuring-bind (module/s &rest kws &key (use t) &allow-other-keys) args
-    (apply (if (consp module/s)
-               #'require-modules
-             #'require-module)
-           module/s :use use kws)))
-
-(declare-extra-lw-commands
-  (:require require-module-command
-   "Require modules, doing some fancy searching
-         :VERBOSE T means be verbose, :FORGET-SYSTEMS NIL means
-         do not forget systems defined when loading.
-         :PRETEND T just tells you what it would have done.
-         Use the module's package by default (:USE NIL to stop this).
-         See ORG.TFEB.TOOLS.REQUIRE-MODULE:REQUIRE-MODULE for details."))
 
 
 ;;;; Directory
