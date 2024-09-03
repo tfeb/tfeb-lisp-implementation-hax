@@ -132,3 +132,10 @@ Both of these work by themselves advising the internal function to which `defadv
 will allow the stack to be extended while it is smaller than `100000`.  The default value of the limit is `*stack-limit*` which in turn defaults to the current stack length at load time.  There are options to say 'always extend', 'never extend' and 'use `*stack-limit*` dynamically to decide'.
 
 You will need [metatronic macros](https://tfeb.github.io/tfeb-lisp-hax/#metatronic-macros) to use this.
+
+### Protecting variables
+`protecting-variables` is a macro which uses information about the lexical environment to make variables read-only.  I would like this to be portable between at least several implementations, and if it becomes so it will move from here (the package will be renamed).  In order to work it needs to be able to map over lexical environments finding variable information, which you can do in LW with `system:map-environment`.
+
+I wrote this because someone asked whether it was possible to do something like it: the only time I can really see it being useful is if you have code which involves macros which might be secretly assigning to things in a way which is hard to see in the source.  It *doesn't* protect you against mutating objects which are the value of variables which is obviously a hard problem in general.  It can't fully protect against assigning to special variables (special variables are not protected by default, because you can always say `(setf (symbol-value ...) ...)`.  It can (if you ask) protect symbol-macros although this tends to cause warnings about unused references which are hard to avoid.
+
+It's not much more than a toy, but it exists.  You will need [collecting](https://tfeb.github.io/tfeb-lisp-hax/#collecting) to use it.
