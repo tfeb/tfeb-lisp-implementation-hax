@@ -139,3 +139,35 @@ You will need [metatronic macros](https://tfeb.github.io/tfeb-lisp-hax/#metatron
 I wrote this because someone asked whether it was possible to do something like it: the only time I can really see it being useful is if you have code which involves macros which might be secretly assigning to things in a way which is hard to see in the source.  It *doesn't* protect you against mutating objects which are the value of variables which is obviously a hard problem in general.  It can't fully protect against assigning to special variables (special variables are not protected by default, because you can always say `(setf (symbol-value ...) ...)`.  It can (if you ask) protect symbol-macros although this tends to cause warnings about unused references which are hard to avoid.
 
 It's not much more than a toy, but it exists.  You will need [collecting](https://tfeb.github.io/tfeb-lisp-hax/#collecting-lists-forwards-and-accumulating-collecting) to use it.
+
+## [`size-by-class`](size-by-class/)
+This contains a utility which will let you see memory usage by class and log its changes over time to a file, and a script (written in Racket) which will let you plot this file.  To use this you will need a recent version of [Štar](https://tfeb.github.io/#%C5%A1tar-an-iteration-construct-for-common-lisp), and my `collecting` hack.  To run the plotter you'll need [Racket](https://racket-lang.org/).
+
+The function `size-by-class` will return a list of `class-counter` objects sorted by size usage. These have slots for the name of the class, the number of instances of this class, the number of bytes used by these instances, and the cumulative size for this class and all smaller ones.  You can prune this list using the `min-ratio` argument which will only count classes whose usage is greater than that ratio of the total size.  In this case there will normally be a `class-counter` object whose name is `nil` at the end of the list, whose job is to account for the remaining space.  You can also filter objects using an arbitrary test function, which would let you, for instance, look only at one class or classes you care about.
+
+`log-size-by-class` will run `size-by-class` periodically, dumping its output to a log file.  Its argument is the log file name.  It has a number of keyword arguments:
+
+- `every` is the time in seconds to wait between runs, default `60`;
+- `count` is how many times to log with `nil`, the default meaning 'run for ever';
+- `min-ratio` is the `min-ratio` argument to `size-by-class`, default `0.05`;
+- `append` tells it to append to the log file.
+
+The way to use this function is to run it in a background process:
+
+```lisp
+(process-run-function
+ "log size"
+ ()
+ #'log-size-by-class
+ "size.ldat"
+ :every 10
+ :count 100)
+```
+
+`plot-sbc.rkt` is a mindless program which will plot the usage from a log file.  If you install it as `plot-sbc`, you can run it as
+
+```
+$ plot-sbc size.ldat size.png
+```
+
+for instance.  It makes an attempt to deal with the log file changing as it runs (if it gets a read error, it retries after a second).  There is a `-n n` argument which lets you select how many classes to plot.
