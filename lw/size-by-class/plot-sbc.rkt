@@ -15,7 +15,7 @@
 
   (plot-font-family 'modern)
   (plot-width 560)
-  (plot-legend-anchor 'top-right)
+  (plot-legend-anchor 'top-left)
 
   (struct class-counter
     (name
