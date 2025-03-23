@@ -16,6 +16,8 @@
   (plot-font-family 'modern)
   (plot-width 560)
   (plot-legend-anchor 'top-left)
+  (plot-x-far-axis? #f)
+  (plot-y-far-axis? #f)
 
   (struct class-counter
     (name
@@ -49,14 +51,20 @@
     ;; allocation in the dump, and the largest total allocation.  If n
     ;; is true but not a number return them all
     (define class-size-table (make-hasheqv))
-    (for ([entry (in-list dump)])
-      (match entry
-        [(cons _ records)
-         (for ([record (in-list records)])
-           (define name (class-counter-name record))
-           (hash-update! class-size-table name
-                         (λ (v) (max v (class-counter-total-size record)))
-                         0))]))
+    (define total-allocation
+      (for/fold ([total-allocation 0])
+                ([entry (in-list dump)])
+        (match entry
+          [(cons _ records)
+           (define this-total
+             (for/sum ([record (in-list records)])
+               (define name (class-counter-name record))
+               (define total-size (class-counter-total-size record))
+               (hash-update! class-size-table name
+                             (λ (v) (max v total-size))
+                             0)
+               total-size))
+           (max total-allocation this-total)])))
     (define sorted (sort (for/list ([(name value) (in-hash class-size-table)])
                            (cons name value))
                          > #:key cdr))
@@ -72,10 +80,11 @@
               (car e))]
            [else
             (seteqv)])
-         (cdr (first sorted)))
-        (values (seteqv) 0)))
+         (cdr (first sorted))
+         total-allocation)
+        (values (seteqv) 0 0)))
 
-  (define (transform-dump dump (classes #f))
+  (define (transform-dump dump #:classes (classes #t) #:total (total #f))
     ;; Transform a dump into something plottable.
     (define sequences (make-hasheqv))
     (define start-ut (car (first dump)))
@@ -83,42 +92,56 @@
       (match entry
         [(cons ut records)
          (define rt (- ut start-ut))
-         (for ([record (in-list records)])
-           (define name (class-counter-name record))
-           (when (or (not classes)
-                     (set-member? classes name))
-             (hash-update! sequences name
-                           (λ (v)
-                             (cons (list rt (class-counter-total-size record))
-                                   v))
-                           '())))]))
+         (define the-total
+           (for/sum ([record (in-list records)])
+             (define name (class-counter-name record))
+             (define total-size (class-counter-total-size record))
+             (when (or (eqv? classes #t)
+                       (set-member? classes name))
+               (hash-update! sequences name
+                             (λ (v)
+                               (cons (list rt total-size)
+                                     v))
+                             '()))
+             total-size))
+         (when total
+           (hash-update! sequences 't
+                         (λ (v)
+                           (cons (list rt the-total)
+                                 v))
+                         '()))]))
     (for/list ([(name entries) (in-hash sequences)])
       (cons name (reverse entries))))
 
   (define (plot-dump-file-to dump-file to
                              #:title (title "LW memory usage by class")
-                             #:n (n #t))
+                             #:n (n #t)
+                             #:total (total #f))
     (define dump (with-handlers
                    ([exn:fail:read?
                      (λ (e)
                        (sleep 1)
                        (snarf-dump dump-file))])
                    (snarf-dump dump-file)))
-    (let-values ([(classes largest) (biggest-classes dump n)])
-      (define td (transform-dump dump classes))
+    (let-values ([(classes largest total-allocation) (biggest-classes dump n)])
+      (define td (transform-dump dump #:classes classes #:total total))
       (plot-file
        (for/list ([r (in-list td)]
-                  [c (in-list (color-seq "blue" "yellow" (length td)))])
+                  [c (in-list (color-seq "blue" "yellow"
+                                         (+ (length td)
+                                            (if total 1 0))))])
          (match r
            [(cons 'nil entries)
             (lines entries #:color c #:label "(small)")]
+           [(cons 't entries)
+            (lines entries #:color c #:label "(total)")]
            [(cons name entries)
             (lines entries #:color c #:label (symbol->string name))]))
        to
        #:y-label "size (bytes)"
        #:x-label "time (seconds)"
        #:y-min 0
-       #:y-max (* largest 1.1)
+       #:y-max (* (if total total-allocation largest) 1.05)
        #:title (if (number? n)
                    (format "~A (~S biggest)" title n)
                    title))))
@@ -136,6 +159,7 @@
   (define me "plot-sbc")
 
   (define number-of-classes (make-parameter #t))
+  (define plot-total-as-well (make-parameter #f))
 
   (struct exn:fail:death exn:fail ()
     #:extra-constructor-name make-exn:fail:death
@@ -175,11 +199,16 @@
          (die "~A isn't a nonnegative integer" n)]
         [else
          (die "~S isnt a number at all" number)]))
+     (("-t" "--total")
+      "also plot the total"
+      (plot-total-as-well #t))
      #:handlers
      (λ (_ . args)
        (match args
          [(list from to)
-          (plot-dump-file-to from to #:n (number-of-classes))
+          (plot-dump-file-to from to
+                             #:n (number-of-classes)
+                             #:total (plot-total-as-well))
           (exit 0)]
          [else
           (die "need dump file, image file")]))
